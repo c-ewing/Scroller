@@ -75,7 +75,11 @@ static int get_report_cb(const struct device *dev, struct usb_setup_packet *setu
         ARG_UNUSED(dev);
         ARG_UNUSED(setup);
 
-        LOG_HEXDUMP_INF(*data, *len, "GET_REPORT");
+        /* Get the feature report (0x0300) with report ID 2 (0x0002)*/
+        if (setup->wValue == 0x0302) {
+                // FIXME: Respond with the resolution multiplier
+                LOG_INF("GET_REPORT: Resolution Multiplier");
+        }
 
         return 0;
 }
@@ -117,6 +121,7 @@ static int set_report_cb(const struct device *dev, struct usb_setup_packet *setu
 
 /* Registers the only used HID callback*/
 static const struct hid_ops ops = {
+    .get_report = get_report_cb,
     .set_report = set_report_cb,
     .int_in_ready = int_in_ready_cb,
 };
