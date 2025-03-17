@@ -43,7 +43,7 @@ static K_SEM_DEFINE(ep_write_sem, 0, 1);
  */
 static K_SEM_DEFINE(usb_conf_sem, 0, 1);
 
-/* Take the status reported by the callback and store it locally */
+/* Take the status reported by the callback and process it */
 static inline void status_cb(enum usb_dc_status_code status, const uint8_t *param)
 {
         ARG_UNUSED(param);
@@ -69,6 +69,17 @@ static void int_in_ready_cb(const struct device *dev)
         k_sem_give(&ep_write_sem);
 }
 
+/* Log set reports */
+static int get_report_cb(const struct device *dev, struct usb_setup_packet *setup, int32_t *len, uint8_t **data)
+{
+        ARG_UNUSED(dev);
+        ARG_UNUSED(setup);
+
+        LOG_HEXDUMP_INF(*data, *len, "GET_REPORT");
+
+        return 0;
+}
+
 /* Callback for Set_Report requests */
 static int set_report_cb(const struct device *dev, struct usb_setup_packet *setup, int32_t *len, uint8_t **data)
 {
@@ -77,7 +88,7 @@ static int set_report_cb(const struct device *dev, struct usb_setup_packet *setu
 
         uint16_t resolution_mult;
 
-        /* Check to see if the first byte is 0x02 the report id for the Resolution Multiplier report */
+        /* Check to see if the first byte is 0x02, the report id for the Resolution Multiplier report */
         if ((*data)[0] != 0x02)
         {
                 return 0;
