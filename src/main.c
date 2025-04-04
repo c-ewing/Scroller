@@ -20,8 +20,6 @@ LOG_MODULE_REGISTER(main, LOG_LEVEL_DBG);
 
 /* USB */
 static const uint8_t hid_report_desc[] = HID_WHEEL_REPORT_DESC();
-/* USB Device Status*/
-static enum usb_dc_status_code usb_status;
 /* Report Frequency (ms) */
 #define REPORT_FREQUENCY 5
 
@@ -30,7 +28,7 @@ struct __packed wheel_report_t
 {
         uint8_t report_id;
         int16_t wheel;
-} wheel_report;
+};
 
 /* Semaphore for writing reports over USB. When a write is started, take the semaphore,
  * when the in endpoint is ready again release the semaphore.
@@ -57,8 +55,6 @@ static inline void status_cb(enum usb_dc_status_code status, const uint8_t *para
                 k_sem_take(&usb_conf_sem, K_NO_WAIT);
                 break;
         }
-
-        usb_status = status;
 }
 
 /* Callback for when the IN endpoint transfer has completed. Releases the write semaphore */
@@ -90,7 +86,7 @@ static int set_report_cb(const struct device *dev, struct usb_setup_packet *setu
         ARG_UNUSED(dev);
         ARG_UNUSED(setup);
 
-        uint16_t resolution_mult;
+        uint16_t resolution_multiplier;
 
         /* Check to see if the first byte is 0x02, the report id for the Resolution Multiplier report */
         if ((*data)[0] != 0x02)
@@ -102,24 +98,25 @@ static int set_report_cb(const struct device *dev, struct usb_setup_packet *setu
         if (*len == 2)
         {
                 /* Extract the resolution multiplier */
-                resolution_mult = (*data)[1];
+                resolution_multiplier = (*data)[1];
 
                 /* Log the resolution multiplier */
-                LOG_INF("Resolution Multiplier: %d", resolution_mult - 1);
+                LOG_INF("Resolution Multiplier: %d", resolution_multiplier - 1);
         }
         else if (*len == 3)
         {
                 /* Extract the resolution multiplier */
-                resolution_mult = (*data)[1] | (*data)[2] << 8;
+                resolution_multiplier = (*data)[1] | (*data)[2] << 8;
+                LOG_ERR("16bit resolution multiplier, only 8bit currently supported");
 
                 /* Log the resolution multiplier */
-                LOG_INF("Resolution Multiplier: %d", resolution_mult - 1);
+                LOG_INF("Resolution Multiplier: %d", resolution_multiplier - 1);
         }
 
         return 0;
 }
 
-/* Registers the only used HID callback*/
+/* Registers HID callback */
 static const struct hid_ops ops = {
     .get_report = get_report_cb,
     .set_report = set_report_cb,
@@ -174,7 +171,7 @@ void sensor_thread_handler(void)
         }
 
         // Read off the AS5600
-        ret = sensor_sample_fetch_chan(sensor, AS5600_SENSOR_CHAN_SCALED_ANGLE);
+        ret = sensor_sample_fetch_chan(sensor, AS5600_SENSOR_CHAN_FILTERED_STEPS);
         if (ret < 0)
         {
                 LOG_ERR("Could not fetch samples (%d)", ret);
@@ -194,7 +191,7 @@ void sensor_thread_handler(void)
          */
         while (1)
         {
-                ret = sensor_channel_get(sensor, AS5600_SENSOR_CHAN_SCALED_ANGLE, &prev_angle);
+                ret = sensor_channel_get(sensor, AS5600_SENSOR_CHAN_FILTERED_STEPS, &prev_angle);
                 if (ret < 0)
                 {
                         LOG_ERR("Could not get samples (%d)", ret);
@@ -203,14 +200,14 @@ void sensor_thread_handler(void)
 
                 k_msleep(REPORT_FREQUENCY);
 
-                ret = sensor_sample_fetch_chan(sensor, AS5600_SENSOR_CHAN_SCALED_ANGLE);
+                ret = sensor_sample_fetch_chan(sensor, AS5600_SENSOR_CHAN_FILTERED_STEPS);
                 if (ret < 0)
                 {
                         LOG_ERR("Could not fetch samples (%d)", ret);
                         return;
                 }
 
-                ret = sensor_channel_get(sensor, AS5600_SENSOR_CHAN_SCALED_ANGLE, &curr_angle);
+                ret = sensor_channel_get(sensor, AS5600_SENSOR_CHAN_FILTERED_STEPS, &curr_angle);
                 if (ret < 0)
                 {
                         LOG_ERR("Could not get samples (%d)", ret);
