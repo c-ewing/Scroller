@@ -4,6 +4,9 @@
 #include <zephyr/usb/class/hid.h>
 #include "hid_extensions.h"
 
+#define SCROLLER_STEPS_LOW_RES 120
+#define SCROLLER_STEPS_HI_RES 1
+
 #define SCROLLER_RESOLUTION_MULTIPLIER 128
 #define SCROLLER_RESOLUTION_MULTIPLIER_REPORT_BITS 7
 #define SCROLLER_L_MIN_L8 0x00

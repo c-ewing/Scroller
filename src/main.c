@@ -100,7 +100,7 @@ static int set_report_cb(const struct device *dev, struct usb_setup_packet *setu
         if ((*data)[0] == 0x02 && (*data)[1] > 0)
         {
                 LOG_INF("HI-res enabled");
-                SCROLLER_CONFIG.internal_divider = 1;
+                SCROLLER_CONFIG.internal_divider = SCROLLER_STEPS_HI_RES;
         }
 
         return 0;
@@ -215,6 +215,9 @@ void sensor_thread_handler(void)
                         delta += 4096; /* Positive direction wrap */
                 }
 
+                /* Invert scroll direction */
+                delta *= -1;
+
                 SCROLLER_CONFIG.scroll_accumulator += delta;
 
                 /*
@@ -244,7 +247,7 @@ int main(void)
         printk("Scroller v0.1 Test Application\n");
 
         /* Assume there is no high res scrolling */
-        SCROLLER_CONFIG.internal_divider = 120;
+        SCROLLER_CONFIG.internal_divider = SCROLLER_STEPS_LOW_RES;
 
         // Log the HID report descriptor
         LOG_HEXDUMP_INF(hid_report_desc, sizeof(hid_report_desc), "HID Report Descriptor");
