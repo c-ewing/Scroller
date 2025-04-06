@@ -4,10 +4,10 @@ NRF52840 and AMS AS5600 based wireless scroll wheel currently in the MVP state.
 
 ## Features
 - USB HID High resolution scrolling at 1/120th the typical scroll distance
+- Internal scroll accumulation: In regular scrolling mode 120 steps are required per scroll event, In high resolution scrolling mode `SCROLLER_STEPS_HI_RES` steps are required (default: 1 step)
 
 ## Planned Features
 - Bluetooth HID
-- Internal scroll accumulation i.e. 1 step is some fraction of a high res scroll event and a report is only sent after surpassing one scroll event
 - Low power mode for idle state
 - Full USB status support
 
