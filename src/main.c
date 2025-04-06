@@ -177,7 +177,6 @@ void sensor_thread_handler(void)
                 if (ret < 0)
                 {
                         LOG_ERR("Could not get samples (%d)", ret);
-                        return;
                 }
 
                 k_msleep(REPORT_FREQUENCY);
@@ -186,14 +185,14 @@ void sensor_thread_handler(void)
                 if (ret < 0)
                 {
                         LOG_ERR("Could not fetch samples (%d)", ret);
-                        return;
+                        continue;
                 }
 
                 ret = sensor_channel_get(sensor, AS5600_SENSOR_CHAN_FILTERED_STEPS, &curr_angle);
                 if (ret < 0)
                 {
                         LOG_ERR("Could not get samples (%d)", ret);
-                        return;
+                        continue;
                 }
 
                 /* Process the step delta accounting for roll over at 0/4095 */
@@ -269,7 +268,7 @@ int main(void)
         // Initialize the HID device
         usb_hid_init(hid_dev);
 
-        // Enable USB and binds the status callbackry april fools I feel like anton is slowly turning more and more insane.
+        // Enable USB and binds the status callback
         ret = usb_enable(status_cb);
 
         if (ret != 0)
