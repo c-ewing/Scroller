@@ -30,6 +30,13 @@ struct __packed wheel_report_t
         int16_t wheel;
 };
 
+/* Scroller config */
+struct scroller_config_t
+{
+        int32_t scroll_accumulator;
+        int32_t internal_divider;
+} SCROLLER_CONFIG;
+
 /* Semaphore for writing reports over USB. When a write is started, take the semaphore,
  * when the in endpoint is ready again release the semaphore.
  */
@@ -86,31 +93,14 @@ static int set_report_cb(const struct device *dev, struct usb_setup_packet *setu
         ARG_UNUSED(dev);
         ARG_UNUSED(setup);
 
-        uint16_t resolution_multiplier;
-
-        /* Check to see if the first byte is 0x02, the report id for the Resolution Multiplier report */
-        if ((*data)[0] != 0x02)
+        /* Check to see if the first byte is 0x02, the report id for the Resolution Multiplier report
+         * and enable high res scrolling if the next value is greater than 0. Linux and Windows use a fixed 120
+         * high res scrolls per basic scroll so the set value resolution multiplier doesn't matter here
+         */
+        if ((*data)[0] == 0x02 && (*data)[1] > 0)
         {
-                return 0;
-        }
-
-        /* uint8 or uint16 resolution modifier depending on report setting */
-        if (*len == 2)
-        {
-                /* Extract the resolution multiplier */
-                resolution_multiplier = (*data)[1];
-
-                /* Log the resolution multiplier */
-                LOG_INF("Resolution Multiplier: %d", resolution_multiplier - 1);
-        }
-        else if (*len == 3)
-        {
-                /* Extract the resolution multiplier */
-                resolution_multiplier = (*data)[1] | (*data)[2] << 8;
-                LOG_ERR("16bit resolution multiplier, only 8bit currently supported");
-
-                /* Log the resolution multiplier */
-                LOG_INF("Resolution Multiplier: %d", resolution_multiplier - 1);
+                LOG_INF("HI-res enabled");
+                SCROLLER_CONFIG.internal_divider = 1;
         }
 
         return 0;
@@ -180,15 +170,7 @@ void sensor_thread_handler(void)
 
         struct sensor_value prev_angle;
         struct sensor_value curr_angle;
-        /*
-         * FIXME: Apply an internal scroll accumulator. The linux kernel only supports down to
-         * (int)(steps * 120 / RES MULT) resulting a maximum of 120 steps per detent. Fractional
-         * scrolling is not supported. The sensor emits 4096/120 ~34 detents per revolution
-         * which is high.
-         *
-         * This may also be possible to solve using a custom Mouse definition in the kernel or
-         * libinput allowing for more steps per detent.
-         */
+
         while (1)
         {
                 ret = sensor_channel_get(sensor, AS5600_SENSOR_CHAN_FILTERED_STEPS, &prev_angle);
@@ -215,22 +197,38 @@ void sensor_thread_handler(void)
                 }
 
                 /* Process the step delta accounting for roll over at 0/4095 */
-                int16_t delta = curr_angle.val1 - prev_angle.val1;
+                int16_t delta = prev_angle.val1 - curr_angle.val1;
+
+                /* If there is not change just continue */
+                if (!delta)
+                {
+                        continue;
+                }
+
+                /* Handle wrapping the zero point */
                 if (delta > 2048)
                 {
-                        delta -= 4096; // Negative direction wrap
+                        delta -= 4096; /* Negative direction wrap */
                 }
                 else if (delta < -2048)
                 {
-                        delta += 4096; // Positive direction wrap
+                        delta += 4096; /* Positive direction wrap */
                 }
 
-                if (delta)
-                {
-                        // LOG_INF("Angle delta: %d", delta);
-                        delta *= -1; /* Invert delta to change scroll direction */
-                        k_msgq_put(&sensor_msgq, &delta, K_NO_WAIT);
-                }
+                SCROLLER_CONFIG.scroll_accumulator += delta;
+
+                /*
+                 * Apply an internal scroll accumulator. The linux kernel only supports down to
+                 * (int)(steps * 120 / RES MULT) resulting a maximum of 120 steps per detent. Fractional
+                 * scrolling is not supported. The sensor emits 4096/120 ~34 detents per revolution
+                 * which is high.
+                 */
+
+                /* Steps are integer part of accumulated steps over the internal multiplier */
+                int steps = SCROLLER_CONFIG.scroll_accumulator / SCROLLER_CONFIG.internal_divider;
+                SCROLLER_CONFIG.scroll_accumulator %= SCROLLER_CONFIG.internal_divider;
+
+                k_msgq_put(&sensor_msgq, &steps, K_NO_WAIT);
 
                 /* Move cur to prev*/
                 prev_angle.val1 = curr_angle.val1;
@@ -244,6 +242,9 @@ int main(void)
         int ret;
 
         printk("Scroller v0.1 Test Application\n");
+
+        /* Assume there is no high res scrolling */
+        SCROLLER_CONFIG.internal_divider = 120;
 
         // Log the HID report descriptor
         LOG_HEXDUMP_INF(hid_report_desc, sizeof(hid_report_desc), "HID Report Descriptor");
