@@ -37,4 +37,4 @@
 
 #define HID_USAGE_16(a, b) HID_ITEM(HID_ITEM_TAG_USAGE, HID_ITEM_TYPE_LOCAL, 2), a, b
 
-#endif // HID_EXTENSIONS_H
+#endif /* HID_EXTENSIONS_H */
