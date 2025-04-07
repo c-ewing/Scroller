@@ -12,16 +12,13 @@
 #include <zephyr/usb/usbd.h>
 #include <zephyr/usb/class/usb_hid.h>
 
-#include "scroller.h"
+#include "scroller_config.h"
+#include "scroller_sensor.h"
 
 LOG_MODULE_REGISTER(main, LOG_LEVEL_DBG);
 
-#define SENSOR_THREAD_PRIORITY 0x02
-
 /* USB */
 static const uint8_t hid_report_desc[] = HID_WHEEL_REPORT_DESC();
-/* Report Frequency (ms) */
-#define REPORT_FREQUENCY 5
 
 /* Mouse Report */
 struct __packed wheel_report_t
@@ -30,12 +27,12 @@ struct __packed wheel_report_t
         int16_t wheel;
 };
 
-/* Scroller config */
-struct scroller_config_t
-{
-        int32_t scroll_accumulator;
-        int32_t internal_divider;
-} SCROLLER_CONFIG;
+/* Initialize config and config mutex */
+struct scroller_config_t SCROLLER_CONFIG = {
+    .scroll_accumulator = 0,
+    .internal_divider = SCROLLER_STEPS_LOW_RES,
+};
+K_MUTEX_DEFINE(scroller_config_mutex);
 
 /* Semaphore for writing reports over USB. When a write is started, take the semaphore,
  * when the in endpoint is ready again release the semaphore.
@@ -138,115 +135,12 @@ int send_hid_report(const struct device *hid_dev, uint8_t *report, size_t report
         return 0;
 }
 
-/* Sensor value message queue */
-K_MSGQ_DEFINE(sensor_msgq, sizeof(int16_t), 2, 1);
-
-/* Sensor read thread
- *
- * Responsible for reading the AS5600 sensor and enqueuing the data to be
- * consumed by either a USB or BT sender.
- *
- * Thread priority is 0x02 to allow for USB/BT to run at 0x01.
- */
-void sensor_thread_handler(void)
-{
-        const struct device *sensor;
-        int ret;
-
-        sensor = DEVICE_DT_GET(DT_NODELABEL(as5600));
-        if (!device_is_ready(sensor))
-        {
-                LOG_ERR("Sensor not ready");
-                return;
-        }
-
-        // Read off the AS5600
-        ret = sensor_sample_fetch_chan(sensor, AS5600_SENSOR_CHAN_FILTERED_STEPS);
-        if (ret < 0)
-        {
-                LOG_ERR("Could not fetch samples (%d)", ret);
-                return;
-        }
-
-        struct sensor_value prev_angle;
-        struct sensor_value curr_angle;
-
-        while (1)
-        {
-                ret = sensor_channel_get(sensor, AS5600_SENSOR_CHAN_FILTERED_STEPS, &prev_angle);
-                if (ret < 0)
-                {
-                        LOG_ERR("Could not get samples (%d)", ret);
-                }
-
-                k_msleep(REPORT_FREQUENCY);
-
-                ret = sensor_sample_fetch_chan(sensor, AS5600_SENSOR_CHAN_FILTERED_STEPS);
-                if (ret < 0)
-                {
-                        LOG_ERR("Could not fetch samples (%d)", ret);
-                        continue;
-                }
-
-                ret = sensor_channel_get(sensor, AS5600_SENSOR_CHAN_FILTERED_STEPS, &curr_angle);
-                if (ret < 0)
-                {
-                        LOG_ERR("Could not get samples (%d)", ret);
-                        continue;
-                }
-
-                /* Process the step delta accounting for roll over at 0/4095 */
-                int16_t delta = prev_angle.val1 - curr_angle.val1;
-
-                /* If there is not change just continue */
-                if (!delta)
-                {
-                        continue;
-                }
-
-                /* Handle wrapping the zero point */
-                if (delta > 2048)
-                {
-                        delta -= 4096; /* Negative direction wrap */
-                }
-                else if (delta < -2048)
-                {
-                        delta += 4096; /* Positive direction wrap */
-                }
-
-                /* Invert scroll direction */
-                delta *= -1;
-
-                SCROLLER_CONFIG.scroll_accumulator += delta;
-
-                /*
-                 * Apply an internal scroll accumulator. The linux kernel only supports down to
-                 * (int)(steps * 120 / RES MULT) resulting a maximum of 120 steps per detent. Fractional
-                 * scrolling is not supported. The sensor emits 4096/120 ~34 detents per revolution
-                 * which is high.
-                 */
-
-                /* Steps are integer part of accumulated steps over the internal multiplier */
-                int steps = SCROLLER_CONFIG.scroll_accumulator / SCROLLER_CONFIG.internal_divider;
-                SCROLLER_CONFIG.scroll_accumulator %= SCROLLER_CONFIG.internal_divider;
-
-                k_msgq_put(&sensor_msgq, &steps, K_NO_WAIT);
-
-                /* Move cur to prev*/
-                prev_angle.val1 = curr_angle.val1;
-        }
-}
-K_THREAD_DEFINE(sensor_thread, 1024, sensor_thread_handler, NULL, NULL, NULL, SENSOR_THREAD_PRIORITY, 0, 0);
-
 int main(void)
 {
         const struct device *hid_dev;
         int ret;
 
         printk("Scroller v0.1 Test Application\n");
-
-        /* Assume there is no high res scrolling */
-        SCROLLER_CONFIG.internal_divider = SCROLLER_STEPS_LOW_RES;
 
         // Log the HID report descriptor
         LOG_HEXDUMP_INF(hid_report_desc, sizeof(hid_report_desc), "HID Report Descriptor");

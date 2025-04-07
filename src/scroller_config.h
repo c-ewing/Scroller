@@ -4,8 +4,28 @@
 #include <zephyr/usb/class/hid.h>
 #include "hid_extensions.h"
 
+/* Use thread priority 2 for reading for the sensor to allow for prempting*/
+#define SCROLLER_SENSOR_THREAD_PRIORITY 0x02
+
+/* Report Frequency (ms) */
+#define SCROLLER_REPORT_FREQUENCY 5
+
+/* Default step scaling values */
 #define SCROLLER_STEPS_LOW_RES 120
 #define SCROLLER_STEPS_HI_RES 1
+
+/* Scroller config */
+struct scroller_config_t
+{
+    int32_t scroll_accumulator;
+    int32_t internal_divider;
+};
+
+/* Global config */
+extern struct scroller_config_t SCROLLER_CONFIG;
+extern struct k_mutex scroller_config_mutex;
+
+/*-- HID REPORT --*/
 
 #define SCROLLER_RESOLUTION_MULTIPLIER 128
 #define SCROLLER_RESOLUTION_MULTIPLIER_REPORT_BITS 7
