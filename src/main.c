@@ -44,6 +44,11 @@ static K_SEM_DEFINE(ep_write_sem, 0, 1);
  */
 static K_SEM_DEFINE(usb_conf_sem, 0, 1);
 
+/* Semaphore for suspending the USB connection
+ * on USB_DC_SUSPEND take the semephore, on
+ */
+static K_SEM_DEFINE(usb_suspend_sem, 1, 1);
+
 /* Take the status reported by the callback and process it */
 static inline void status_cb(enum usb_dc_status_code status, const uint8_t *param)
 {
@@ -52,12 +57,41 @@ static inline void status_cb(enum usb_dc_status_code status, const uint8_t *para
         /* Try taking the semaphore on all states other than configured */
         switch (status)
         {
-        case USB_DC_CONFIGURED:
-                k_sem_give(&usb_conf_sem);
+        case USB_DC_UNKNOWN:
+                /* Connection status unknown */
                 break;
-        default:
+        case USB_DC_CONNECTED:
+                /* Physically connected */
                 k_sem_take(&usb_conf_sem, K_NO_WAIT);
                 break;
+        case USB_DC_RESET:
+                /* Reset device state to defaults */
+                // FIXME: Support this, reset the SCROLLER_CONFIG state
+                /* Device is unconfigured and not suspended */
+                k_sem_take(&usb_conf_sem, K_NO_WAIT);
+                k_sem_give(&usb_suspend_sem);
+                break;
+        case USB_DC_CONFIGURED:
+                /* Device configured for data transfer */
+                k_sem_give(&usb_conf_sem);
+                break;
+        case USB_DC_DISCONNECTED:
+                /* Physically disconnected */
+                // FIXME: In the USB thread, stop trying to send packets
+                k_sem_take(&usb_conf_sem, K_NO_WAIT);
+                break;
+        case USB_DC_SUSPEND:
+                /* Suspend the device, does not change configuration just pauses connection */
+                // FIXME: In the USB thread, stop trying to send packets
+                k_sem_take(&usb_suspend_sem, K_NO_WAIT);
+                break;
+        case USB_DC_RESUME:
+                /* Resume the device, no configuration change */
+                // FIXME: In the USB thread, re-enable sending packets
+                k_sem_give(&usb_suspend_sem);
+                break;
+        default:
+                LOG_WRN("Unhandled USB state: %d", status);
         }
 }
 
@@ -72,7 +106,6 @@ static void int_in_ready_cb(const struct device *dev)
 static int get_report_cb(const struct device *dev, struct usb_setup_packet *setup, int32_t *len, uint8_t **data)
 {
         ARG_UNUSED(dev);
-        ARG_UNUSED(setup);
 
         /* Get the feature report (0x0300) with report ID 2 (0x0002)*/
         if (setup->wValue == 0x0302)
@@ -110,12 +143,16 @@ static const struct hid_ops ops = {
     .int_in_ready = int_in_ready_cb,
 };
 
-int send_hid_report(const struct device *hid_dev, uint8_t *report, size_t report_size)
+void send_hid_report(const struct device *hid_dev, uint8_t *report, size_t report_size)
 {
         int ret;
 
-        /* Make sure the USB device is configured before trying to write */
-        k_sem_take(&usb_conf_sem, K_FOREVER);
+        /* Make sure the USB device is configured and not suspended before trying to write */
+        if (!k_sem_count_get(&usb_conf_sem) || !k_sem_count_get(&usb_suspend_sem))
+        {
+                LOG_INF("Report not sent: %d, %d", k_sem_count_get(&usb_conf_sem), k_sem_count_get(&usb_suspend_sem));
+                return;
+        }
 
         /* Write the report to the HID interrupt endpoint */
         ret = hid_int_ep_write(hid_dev, report, report_size, NULL);
@@ -130,9 +167,7 @@ int send_hid_report(const struct device *hid_dev, uint8_t *report, size_t report
                 k_sem_take(&ep_write_sem, K_FOREVER);
         }
 
-        k_sem_give(&usb_conf_sem);
-
-        return 0;
+        return;
 }
 
 int main(void)
