@@ -66,7 +66,10 @@ static inline void status_cb(enum usb_dc_status_code status, const uint8_t *para
                 break;
         case USB_DC_RESET:
                 /* Reset device state to defaults */
-                // FIXME: Support this, reset the SCROLLER_CONFIG state
+                k_mutex_lock(&scroller_config_mutex, K_FOREVER);
+                SCROLLER_CONFIG.internal_divider = SCROLLER_STEPS_LOW_RES;
+                SCROLLER_CONFIG.scroll_accumulator = 0;
+                k_mutex_unlock(&scroller_config_mutex);
                 /* Device is unconfigured and not suspended */
                 k_sem_take(&usb_conf_sem, K_NO_WAIT);
                 k_sem_give(&usb_suspend_sem);
