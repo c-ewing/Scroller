@@ -4,8 +4,12 @@
 #include <zephyr/usb/class/hid.h>
 #include "hid_extensions.h"
 
-/* Use thread priority 2 for reading for the sensor to allow for prempting*/
+/* Thread priority 2 for sensor reading to allow for prempting */
 #define SCROLLER_SENSOR_THREAD_PRIORITY 0x02
+
+/* Thread priority 1 for send threads, taking precidence over reading */
+#define SCROLLER_SEND_THREAD_PRIORITY 0x01
+
 
 /* Report Frequency (ms) */
 #define SCROLLER_REPORT_FREQUENCY 5
