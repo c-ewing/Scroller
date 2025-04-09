@@ -37,12 +37,12 @@ evtest
 
 If the device is registering correctly, `evtest` should register two different event types.
 `REL_WHEEL` is a standard scroll event while `REL_WHEEL_HI_RES` is 1/120th of the scroll distance of `REL_WHEEL`.
-In the [kernel](https://patchwork.kernel.org/project/linux-input/patch/20181205004228.10714-5-peter.hutterer@who-t.net/) `lo_res` events are emitted only once 120 `hi_res` events have accumulated. This lets legacy applications still recieve `lo_res`
+In the [kernel](https://patchwork.kernel.org/project/linux-input/patch/20181205004228.10714-5-peter.hutterer@who-t.net/) `lo_res` events are emitted only once 120 `hi_res` events have accumulated. This lets legacy applications still receive `lo_res`
 events, while enabling newer applications to scroll in finer steps. 
 
 ## Design Details
 
-Scroller is designed around a single producer (Sensor Thread) and single consumer model (Send Threads). There are two consumers of the sensor values, Bluetooth and USB however only one is enabled at a time. USB connections will always take priority over Bluetooth ones. The following diagrams model the basic controll flow of the application code. The first diagram outlines threads while the second the control flow for choosing which send thread to use.
+Scroller is designed around a single producer (Sensor Thread) and single consumer model (Send Threads). There are two consumers of the sensor values, Bluetooth and USB however only one is enabled at a time. USB connections will always take priority over Bluetooth ones. The following diagrams model the basic control flow of the application code. The first diagram outlines threads while the second the control flow for choosing which send thread to use.
 
 ```mermaid
 ---
