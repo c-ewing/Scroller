@@ -241,4 +241,5 @@ void send_report_usb()
 }
 
 /* USB report sending thread */
-K_THREAD_DEFINE(usb_send_thread, 1024, send_report_usb, NULL, NULL, NULL, SCROLLER_SEND_THREAD_PRIORITY, 0, 0);
+// FIXME: Re-enable USB
+// K_THREAD_DEFINE(usb_send_thread, 1024, send_report_usb, NULL, NULL, NULL, SCROLLER_SEND_THREAD_PRIORITY, 0, 0);

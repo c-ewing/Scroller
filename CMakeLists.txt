@@ -3,4 +3,7 @@ find_package(Zephyr REQUIRED HINTS $ENV{ZEPHYR_BASE})
 
 project(scroller_mvp)
 
-target_sources(app PRIVATE src/main.c src/scroller_sensor.c src/scroller_usb.c)
+FILE(GLOB app_sources src/*.c)
+target_sources(app PRIVATE
+  ${app_sources}
+)

@@ -12,9 +12,13 @@
 #include <zephyr/usb/usbd.h>
 #include <zephyr/usb/class/usb_hid.h>
 
+#include <zephyr/bluetooth/bluetooth.h>
+#include <zephyr/bluetooth/conn.h>
+
 #include "scroller_config.h"
 #include "scroller_sensor.h"
-#include "scroller_usb.h"
+#include "scroller_ble.h"
+#include "scroller_hog.h"
 
 LOG_MODULE_REGISTER(main, LOG_LEVEL_DBG);
 
@@ -31,12 +35,13 @@ int main(void)
 
         printk("Scroller v0.1 Test Application\n");
 
-        err = scroller_usb_init();
-        if (err < 0)
+        err = bt_enable(bt_ready);
+        if (err)
         {
-                LOG_ERR("Scroller USB init failed, exiting");
-                return -EINVAL;
+                printk("Bluetooth init failed (err %d)\n", err);
+                return 0;
         }
 
+        hog_button_loop();
         return 0;
 }
