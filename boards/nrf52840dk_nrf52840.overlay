@@ -2,7 +2,10 @@
 // For more help, browse the DeviceTree documentation at https: //docs.zephyrproject.org/latest/guides/dts/index.html
 
 &i2c0 {
+	compatible = "nordic,nrf-twim";
 	status = "okay";
+	clock-frequency = <I2C_BITRATE_STANDARD>;
+
 	pinctrl-0 = <&i2c0_default>;
 	pinctrl-1 = <&i2c0_sleep>;
 	pinctrl-names = "default", "sleep";
@@ -17,8 +20,6 @@
 		slow-filter = <1>;
 		fast-filter-threshold = <1>;
 	};
-
-	clock-frequency = <I2C_BITRATE_STANDARD>;
 };
 
 &pinctrl {
