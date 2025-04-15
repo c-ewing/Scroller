@@ -1,5 +1,3 @@
-/* main.c - Application main entry point */
-
 /*
  * Copyright (c) 2016 Intel Corporation
  *
@@ -46,7 +44,7 @@ static void connected(struct bt_conn *conn, uint8_t err)
     if (err)
     {
         LOG_ERR("Failed to connect to %s, err 0x%02x %s", addr,
-               err, bt_hci_err_to_str(err));
+                err, bt_hci_err_to_str(err));
         return;
     }
 
@@ -58,6 +56,7 @@ static void connected(struct bt_conn *conn, uint8_t err)
     }
 }
 
+// FIXME: Restart advertising on disconnect
 static void disconnected(struct bt_conn *conn, uint8_t reason)
 {
     char addr[BT_ADDR_LE_STR_LEN];
@@ -65,7 +64,7 @@ static void disconnected(struct bt_conn *conn, uint8_t reason)
     bt_addr_le_to_str(bt_conn_get_dst(conn), addr, sizeof(addr));
 
     LOG_INF("Disconnected from %s, reason 0x%02x %s", addr,
-           reason, bt_hci_err_to_str(reason));
+            reason, bt_hci_err_to_str(reason));
 }
 
 static void security_changed(struct bt_conn *conn, bt_security_t level,
@@ -82,7 +81,7 @@ static void security_changed(struct bt_conn *conn, bt_security_t level,
     else
     {
         LOG_WRN("Security failed: %s level %u err %s(%d)", addr, level,
-               bt_security_err_to_str(err), err);
+                bt_security_err_to_str(err), err);
     }
 }
 

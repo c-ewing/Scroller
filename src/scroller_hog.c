@@ -1,7 +1,3 @@
-/** @file
- *  @brief HoG Service sample
- */
-
 /*
  * Copyright (c) 2016 Intel Corporation
  *
@@ -114,7 +110,6 @@ static ssize_t read_feature_report(struct bt_conn *conn,
                                    const struct bt_gatt_attr *attr, void *buf,
                                    uint16_t len, uint16_t offset)
 {
-    ssize_t ret;
     // FIXME: This feels hacky however OS's always use a fixed 120 for the resolution multiplier
     int16_t fake_resolution;
 
@@ -195,7 +190,7 @@ BT_GATT_SERVICE_DEFINE(hog_svc,
                                           read_report, NULL, &input),
                        BT_GATT_CCC(input_ccc_changed,
                                    BT_GATT_PERM_READ_ENCRYPT | BT_GATT_PERM_WRITE_ENCRYPT),
-                       
+
                        /* Report 2: Feature Report */
                        BT_GATT_CHARACTERISTIC(BT_UUID_HIDS_REPORT,
                                               BT_GATT_CHRC_READ | BT_GATT_CHRC_WRITE,
