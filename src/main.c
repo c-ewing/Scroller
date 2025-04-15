@@ -42,6 +42,5 @@ int main(void)
                 return 0;
         }
 
-        hog_button_loop();
         return 0;
 }

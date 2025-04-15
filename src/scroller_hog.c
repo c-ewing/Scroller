@@ -210,9 +210,9 @@ BT_GATT_SERVICE_DEFINE(hog_svc,
                                               BT_GATT_PERM_WRITE,
                                               NULL, write_ctrl_point, &ctrl_point), );
 
-void hog_button_loop(void)
+/* HID over GATT sending thread */
+void send_report_ble()
 {
-    int err;
     int16_t sens_val;
 
     while (1)
@@ -223,3 +223,6 @@ void hog_button_loop(void)
         bt_gatt_notify(NULL, &hog_svc.attrs[6], &sens_val, sizeof(int16_t));
     }
 }
+
+/* BLE report sending thread */
+K_THREAD_DEFINE(ble_send_thread, 1024, send_report_ble, NULL, NULL, NULL, SCROLLER_SEND_THREAD_PRIORITY, 0, 0);
