@@ -38,7 +38,7 @@ int main(void)
         err = bt_enable(bt_ready);
         if (err)
         {
-                printk("Bluetooth init failed (err %d)\n", err);
+                LOG_ERR("Bluetooth init failed: %d", err);
                 return 0;
         }
 
