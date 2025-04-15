@@ -95,4 +95,5 @@ flowchart TD
 - https://github.com/qmk/qmk_firmware/issues/17585 # QMK High Resolution scrolling Report 
 - https://download.microsoft.com/download/b/d/1/bd1f7ef4-7d72-419e-bc5c-9f79ad7bb66e/wheel.docx # Windows High resolution scrolling
 - https://patchwork.kernel.org/project/linux-input/patch/20181205004228.10714-5-peter.hutterer@who-t.net/ # Linux kernel high resolution scrolling matching the windows implementation
+- https://devzone.nordicsemi.com/cfs-file/__key/support-attachments/beef5d1b77644c448dabff31668f3a47-d2e31a4fe5fd4955b77461e3188e06af/HIDS_5F00_SPEC_5F00_V10.pdf # HID GATT Service specification, mostly section 2
 

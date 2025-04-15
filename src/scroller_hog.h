@@ -7,8 +7,6 @@
 #ifndef SCROLLER_HOG_H
 #define SCROLLER_HOG_H
 
-void hog_init(void);
-
-void hog_button_loop(void);
+void hog_send_loop(void);
 
 #endif /* SCROLLER_HOG_H */
