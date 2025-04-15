@@ -103,7 +103,11 @@ void sensor_thread_handler(void)
         /* Release the global config */
         k_mutex_unlock(&scroller_config_mutex);
 
-        k_msgq_put(&sensor_msgq, &steps, K_NO_WAIT);
+        /* If steps > 0 */
+        if (steps)
+        {
+            k_msgq_put(&sensor_msgq, &steps, K_NO_WAIT);
+        }
 
         /* Move cur to prev*/
         prev_angle.val1 = curr_angle.val1;
