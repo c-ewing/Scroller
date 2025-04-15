@@ -140,15 +140,15 @@ static ssize_t write_feature_report(struct bt_conn *conn,
                                     const void *buf, uint16_t len,
                                     uint16_t offset, uint8_t flags)
 {
-    /* Bail if it is not a feature report */
-    if (len != 2 || flags != 0)
-    {
-        return 0;
-    }
-
-    /* Save Feature Report Value */
+    /* Feature Report Value */
     int16_t value;
-    memcpy(&value, &buf[offset], len);
+
+    /* Check the data recieved before copying */
+    if (offset + len > sizeof(value))
+    {
+        return BT_GATT_ERR(BT_ATT_ERR_INVALID_OFFSET);
+    }
+    memcpy(&value, (((uint8_t *)buf) + offset), len);
 
     /* If there is a value sent it is enabling high resolution */
     if (value)
