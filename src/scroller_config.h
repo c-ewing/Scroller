@@ -23,10 +23,18 @@ struct scroller_config_t
     int32_t scroll_accumulator;
     int32_t internal_divider;
 };
-
-/* Global config */
+// FIXME: Add get/set helpers to make sure the mut is locked/unlocked properly
 extern struct scroller_config_t SCROLLER_CONFIG;
 extern struct k_mutex scroller_config_mutex;
+
+/* Device state */
+enum SCROLLER_STATE
+{
+    BLE_DISCONNECTED,
+    BLE_CONNECTED,
+    BLE_ADVERTISING,
+};
+extern struct k_msgq state_change;
 
 /*-- HID REPORT --*/
 

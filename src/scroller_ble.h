@@ -1,6 +1,8 @@
 #ifndef SCROLLER_BLE_H
 #define SCROLLER_BLE_H
 
-void bt_ready(int err);
+void scroller_ble_init(int err);
+
+int scroller_ble_advertise_pairing();
 
 #endif /* SCROLLER_BLE_H */

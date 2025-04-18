@@ -21,6 +21,7 @@
 #include <zephyr/bluetooth/gatt.h>
 
 #include "scroller_hog.h"
+#include "scroller_config.h"
 
 LOG_MODULE_REGISTER(scroller_ble, LOG_LEVEL_DBG);
 
@@ -34,6 +35,12 @@ static const struct bt_data ad[] = {
 static const struct bt_data sd[] = {
     BT_DATA(BT_DATA_NAME_COMPLETE, CONFIG_BT_DEVICE_NAME, sizeof(CONFIG_BT_DEVICE_NAME) - 1),
 };
+
+/* Prevent restarting advertising if it is already started */
+K_SEM_DEFINE(scroller_ble_advertising, 1, 1);
+
+/* Current BLE state */
+static int32_t state;
 
 static void connected(struct bt_conn *conn, uint8_t err)
 {
@@ -54,9 +61,16 @@ static void connected(struct bt_conn *conn, uint8_t err)
     {
         LOG_WRN("Failed to set security");
     }
+
+    /* Enter BLE_CONNECTED state and clear advertising sem */
+    state = BLE_CONNECTED;
+    if (k_msgq_put(&state_change, &state, K_MSEC(5)))
+    {
+        LOG_ERR("Failed to send BLE_CONNECTED");
+    }
+    k_sem_give(&scroller_ble_advertising);
 }
 
-// FIXME: Restart advertising on disconnect
 static void disconnected(struct bt_conn *conn, uint8_t reason)
 {
     char addr[BT_ADDR_LE_STR_LEN];
@@ -65,6 +79,13 @@ static void disconnected(struct bt_conn *conn, uint8_t reason)
 
     LOG_INF("Disconnected from %s, reason 0x%02x %s", addr,
             reason, bt_hci_err_to_str(reason));
+
+    /* Enter BLE_CONNECTED state */
+    state = BLE_DISCONNECTED;
+    if (k_msgq_put(&state_change, &state, K_MSEC(5)))
+    {
+        LOG_ERR("Failed to send BLE_DISCONNECTED");
+    }
 }
 
 static void security_changed(struct bt_conn *conn, bt_security_t level,
@@ -91,7 +112,41 @@ BT_CONN_CB_DEFINE(conn_callbacks) = {
     .security_changed = security_changed,
 };
 
-void bt_ready(int err)
+/* Advertise with the given type:
+ * BT_LE_ADV_CONN_FAST_1 --> Pairing
+ * TODO: Low power pairing mode? Longer interval to decrease battery usage.
+ */
+int scroller_ble_advertise_pairing(const struct bt_le_adv_param *advertising_type)
+{
+    int err;
+
+    if (k_sem_take(&scroller_ble_advertising, K_NO_WAIT))
+    {
+        /* Advertising is currently running, bail out */
+        LOG_WRN("Advertising already running");
+        return -EINPROGRESS;
+    }
+
+    err = bt_le_adv_start(BT_LE_ADV_CONN_FAST_1, ad, ARRAY_SIZE(ad), sd, ARRAY_SIZE(sd));
+    if (err)
+    {
+        LOG_ERR("Advertising failed to start: %d", err);
+        k_sem_give(&scroller_ble_advertising);
+        return err;
+    }
+
+    /* Enter BLE_ADVERTISING state */
+    state = BLE_ADVERTISING;
+    if (k_msgq_put(&state_change, &state, K_MSEC(5)))
+    {
+        LOG_ERR("Failed to send BLE_ADVERTISING");
+    }
+
+    LOG_INF("Advertising successfully started");
+    return 0;
+}
+
+void scroller_ble_init(int err)
 {
     if (err)
     {
@@ -106,12 +161,10 @@ void bt_ready(int err)
         settings_load();
     }
 
-    err = bt_le_adv_start(BT_LE_ADV_CONN_FAST_1, ad, ARRAY_SIZE(ad), sd, ARRAY_SIZE(sd));
-    if (err)
+    /* Enter BLE_CONNECTED state */
+    state = BLE_DISCONNECTED;
+    if (k_msgq_put(&state_change, &state, K_MSEC(5)))
     {
-        LOG_ERR("Advertising failed to start: %d", err);
-        return;
+        LOG_ERR("Failed to send BLE_DISCONNECTED");
     }
-
-    LOG_INF("Advertising successfully started");
 }
