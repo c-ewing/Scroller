@@ -1,5 +1,13 @@
-// To get started, press Ctrl+Space to bring up the completion menu and view the available nodes.
-// For more help, browse the DeviceTree documentation at https: //docs.zephyrproject.org/latest/guides/dts/index.html
+/ {
+	longpress {
+		input = <&buttons>;
+		compatible = "zephyr,input-longpress";
+		input-codes = <INPUT_KEY_0>;
+		short-codes = <INPUT_KEY_A>;
+		long-codes = <INPUT_KEY_X>;
+		long-delay-ms = <1000>;
+	};
+};
 
 &i2c0 {
 	status = "okay";

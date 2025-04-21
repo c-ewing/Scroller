@@ -10,15 +10,16 @@
 #include <errno.h>
 #include <zephyr/logging/log.h>
 #include <zephyr/sys/byteorder.h>
+#include <zephyr/device.h>
+#include <zephyr/input/input.h>
 #include <zephyr/kernel.h>
-
-#include <zephyr/settings/settings.h>
 
 #include <zephyr/bluetooth/bluetooth.h>
 #include <zephyr/bluetooth/hci.h>
 #include <zephyr/bluetooth/conn.h>
 #include <zephyr/bluetooth/uuid.h>
 #include <zephyr/bluetooth/gatt.h>
+#include <zephyr/settings/settings.h>
 
 #include "scroller_hog.h"
 #include "scroller_config.h"
@@ -111,6 +112,29 @@ BT_CONN_CB_DEFINE(conn_callbacks) = {
     .disconnected = disconnected,
     .security_changed = security_changed,
 };
+
+// FIXME: Will need white/black listing of devices
+// for a temporary period to allow others to connect? May need connnection pool info? --> Nordic course
+
+static void input_callback(struct input_event *event, void *userdata)
+{
+
+    switch (event->code)
+    {
+    case INPUT_KEY_0:
+        break;
+
+    case INPUT_KEY_A:
+        LOG_INF("Short Press Key 1");
+        break;
+    case INPUT_KEY_X:
+        LOG_INF("Long Press Key 1");
+        break;
+    }
+}
+
+// FIXME: Limit to one button? It wont matter if there is only one wired
+INPUT_CALLBACK_DEFINE(NULL, input_callback, NULL);
 
 /* Advertise with the given type:
  * BT_LE_ADV_CONN_FAST_1 --> Pairing
