@@ -80,7 +80,11 @@ int main(void)
                         k_thread_suspend(sensor_thread);
                         SENSOR_enabled = false;
 
-                        scroller_ble_advertise_pairing();
+                        err = k_work_submit(&advertise_work);
+                        if (err < 0)
+                        {
+                                LOG_WRN("Failed to submit advertising work");
+                        }
                 }
                 else
                 {

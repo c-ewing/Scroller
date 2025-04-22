@@ -81,7 +81,7 @@ static void disconnected(struct bt_conn *conn, uint8_t reason)
     LOG_INF("Disconnected from %s, reason 0x%02x %s", addr,
             reason, bt_hci_err_to_str(reason));
 
-    /* Enter BLE_CONNECTED state */
+    /* Enter BLE_DISCONNECTED state */
     state = BLE_DISCONNECTED;
     if (k_msgq_put(&state_change, &state, K_MSEC(5)))
     {
@@ -113,34 +113,12 @@ BT_CONN_CB_DEFINE(conn_callbacks) = {
     .security_changed = security_changed,
 };
 
-// FIXME: Will need white/black listing of devices
-// for a temporary period to allow others to connect? May need connnection pool info? --> Nordic course
-
-static void input_callback(struct input_event *event, void *userdata)
-{
-
-    switch (event->code)
-    {
-    case INPUT_KEY_0:
-        break;
-
-    case INPUT_KEY_A:
-        LOG_INF("Short Press Key 1");
-        break;
-    case INPUT_KEY_X:
-        LOG_INF("Long Press Key 1");
-        break;
-    }
-}
-
-// FIXME: Limit to one button? It wont matter if there is only one wired
-INPUT_CALLBACK_DEFINE(NULL, input_callback, NULL);
-
 /* Advertise with the given type:
  * BT_LE_ADV_CONN_FAST_1 --> Pairing
  * TODO: Low power pairing mode? Longer interval to decrease battery usage.
+ * const struct bt_le_adv_param *advertising_type
  */
-int scroller_ble_advertise_pairing(const struct bt_le_adv_param *advertising_type)
+void advertise_pairing(struct k_work *work)
 {
     int err;
 
@@ -148,7 +126,7 @@ int scroller_ble_advertise_pairing(const struct bt_le_adv_param *advertising_typ
     {
         /* Advertising is currently running, bail out */
         LOG_WRN("Advertising already running");
-        return -EINPROGRESS;
+        return;
     }
 
     err = bt_le_adv_start(BT_LE_ADV_CONN_FAST_1, ad, ARRAY_SIZE(ad), sd, ARRAY_SIZE(sd));
@@ -156,7 +134,7 @@ int scroller_ble_advertise_pairing(const struct bt_le_adv_param *advertising_typ
     {
         LOG_ERR("Advertising failed to start: %d", err);
         k_sem_give(&scroller_ble_advertising);
-        return err;
+        return;
     }
 
     /* Enter BLE_ADVERTISING state */
@@ -167,8 +145,9 @@ int scroller_ble_advertise_pairing(const struct bt_le_adv_param *advertising_typ
     }
 
     LOG_INF("Advertising successfully started");
-    return 0;
+    return;
 }
+K_WORK_DEFINE(advertise_work, advertise_pairing);
 
 void scroller_ble_init(int err)
 {
@@ -192,3 +171,33 @@ void scroller_ble_init(int err)
         LOG_ERR("Failed to send BLE_DISCONNECTED");
     }
 }
+
+// FIXME: Will need white/black listing of devices
+// for a temporary period to allow others to connect? May need connnection pool info? --> Nordic course
+static void input_callback(struct input_event *event, void *userdata)
+{
+    static bool pairing_button = true;
+
+    /* Key codes are defined in the overlay file */
+    switch (event->code)
+    {
+    case INPUT_KEY_A:
+        LOG_INF("Short Press Key 1");
+        break;
+    case INPUT_KEY_X:
+        if (pairing_button)
+        {
+            LOG_INF("Long press down key 1");
+            // FIXME: trigger advertising
+        }
+        else
+        {
+            LOG_INF("Long press up key 1");
+        }
+
+        pairing_button = !pairing_button;
+        break;
+    }
+}
+
+INPUT_CALLBACK_DEFINE(NULL, input_callback, NULL);

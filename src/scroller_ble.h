@@ -3,6 +3,6 @@
 
 void scroller_ble_init(int err);
 
-int scroller_ble_advertise_pairing();
+extern struct k_work advertise_work;
 
 #endif /* SCROLLER_BLE_H */
