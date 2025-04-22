@@ -118,7 +118,7 @@ BT_CONN_CB_DEFINE(conn_callbacks) = {
  * TODO: Low power pairing mode? Longer interval to decrease battery usage.
  * const struct bt_le_adv_param *advertising_type
  */
-void advertise_pairing(struct k_work *work)
+void advertise(const struct bt_le_adv_param *advertising_type)
 {
     int err;
 
@@ -129,7 +129,7 @@ void advertise_pairing(struct k_work *work)
         return;
     }
 
-    err = bt_le_adv_start(BT_LE_ADV_CONN_FAST_1, ad, ARRAY_SIZE(ad), sd, ARRAY_SIZE(sd));
+    err = bt_le_adv_start(advertising_type, ad, ARRAY_SIZE(ad), sd, ARRAY_SIZE(sd));
     if (err)
     {
         LOG_ERR("Advertising failed to start: %d", err);
@@ -146,6 +146,11 @@ void advertise_pairing(struct k_work *work)
 
     LOG_INF("Advertising successfully started");
     return;
+}
+
+void advertise_pairing(struct k_work *work)
+{
+    advertise(BT_LE_ADV_CONN_FAST_1);
 }
 K_WORK_DEFINE(advertise_work, advertise_pairing);
 
