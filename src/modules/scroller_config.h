@@ -24,8 +24,12 @@ struct scroller_config_t
     int32_t internal_divider;
 };
 
-/* Global config */
-extern struct scroller_config_t SCROLLER_CONFIG;
+/* Initialize config and config mutex */
+struct scroller_config_t SCROLLER_CONFIG = {
+    .scroll_accumulator = 0,
+    .internal_divider = SCROLLER_STEPS_LOW_RES,
+};
+K_MUTEX_DEFINE(scroller_config_mutex);
 extern struct k_mutex scroller_config_mutex;
 
 /*-- HID REPORT --*/

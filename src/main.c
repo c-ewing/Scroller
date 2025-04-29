@@ -12,30 +12,24 @@
 #include <zephyr/usb/usbd.h>
 #include <zephyr/usb/class/usb_hid.h>
 
-#include "scroller_config.h"
-#include "scroller_sensor.h"
-#include "scroller_usb.h"
+#include <app_event_manager.h>
+#define MODULE main
+#include <caf/events/module_state_event.h>
 
 LOG_MODULE_REGISTER(main, LOG_LEVEL_DBG);
 
-/* Initialize config and config mutex */
-struct scroller_config_t SCROLLER_CONFIG = {
-    .scroll_accumulator = 0,
-    .internal_divider = SCROLLER_STEPS_LOW_RES,
-};
-K_MUTEX_DEFINE(scroller_config_mutex);
-
 int main(void)
 {
-        int err;
-
         printk("Scroller v0.1 Test Application\n");
 
-        err = scroller_usb_init();
-        if (err < 0)
+        if (app_event_manager_init())
         {
-                LOG_ERR("Scroller USB init failed, exiting");
+                LOG_ERR("Application event manager failed to init");
                 return -EINVAL;
+        }
+        else
+        {
+                module_set_state(MODULE_STATE_READY);
         }
 
         return 0;
