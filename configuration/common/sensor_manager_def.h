@@ -15,7 +15,7 @@ static const struct sm_sensor_config sensor_configs[] = {
         .event_descr = "step",
         .chans = step_channel,
         .chan_cnt = ARRAY_SIZE(step_channel),
-        .sampling_period_ms = 500,
+        .sampling_period_ms = 5,
         .active_events_limit = 3,
     },
 };

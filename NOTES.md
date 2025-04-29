@@ -11,3 +11,7 @@ zephyr_include_directories(
   ${APPLICATION_CONFIG_DIR}
 )
 ```
+
+## CAF sensor module
+Sensor events *MUST NOT* be consumed by any listener. The sensor module registers itself as the final listener
+and decrements the sensor event count.
