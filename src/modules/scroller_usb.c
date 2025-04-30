@@ -139,8 +139,20 @@ int16_t calculate_scroll(int32_t sensor_steps)
     /* Move cur to prev*/
     prev_steps = curr_steps;
 
-    // FIXME: Downcast without check
-    return steps;
+    if (steps > INT16_MAX)
+    {
+        LOG_WRN("Steps overflowing 16bits, truncating: %d", steps);
+        return INT16_MAX;
+    }
+    else if (steps < INT16_MIN)
+    {
+        LOG_WRN("Steps overflowing 16bits, truncating: %d", steps);
+        return INT16_MIN;
+    }
+    else
+    {
+        return (int16_t)steps;
+    }
 }
 
 int send_report(const struct device *hid_dev, uint8_t *report, size_t report_size)
@@ -311,6 +323,8 @@ static int init()
 /* Event handler for all possible incoming events */
 static bool app_event_handler(const struct app_event_header *aeh)
 {
+    int err;
+
     if (is_module_state_event(aeh))
     {
         struct module_state_event *event = cast_module_state_event(aeh);
@@ -353,8 +367,12 @@ static bool app_event_handler(const struct app_event_header *aeh)
                 struct sensor_value position;
                 /* memcpy to avoid alignment/aliasing issues and take ownership incase the event is consumed before being sent */
                 memcpy(&position, event->dyndata.data, event->dyndata.size);
-                // FIXME: Check return?
-                k_msgq_put(&sensor_msgq, &position.val1, K_NO_WAIT);
+
+                err = k_msgq_put(&sensor_msgq, &position.val1, K_NO_WAIT);
+                if (err < 0)
+                {
+                    LOG_WRN("Failed to put position on messsage queue");
+                }
 
                 /* Consume the event so avoid sending to multiple senders */
                 return false;
