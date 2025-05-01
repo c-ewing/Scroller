@@ -12,7 +12,9 @@ LOG_MODULE_REGISTER(MODULE, LOG_LEVEL_DBG);
 
 #include "usb_state_event.h"
 #include "scroller_config.h"
-#include "caf/events/sensor_event.h"
+#include <caf/events/sensor_event.h>
+#include <caf/events/force_power_down_event.h>
+#include <caf/events/power_event.h>
 
 // #####
 /* USB initialization state */
@@ -203,7 +205,11 @@ void usb_thread_fn()
     {
         int32_t pos;
         /* Wait for a message to be available */
-        k_msgq_get(&sensor_msgq, &pos, K_FOREVER);
+        err = k_msgq_get(&sensor_msgq, &pos, K_FOREVER);
+        if (err)
+        {
+            LOG_WRN("Recieve error: %d", err);
+        }
 
         wheel_report.wheel = calculate_scroll(pos);
 
@@ -268,6 +274,21 @@ static inline void status_cb(enum usb_dc_status_code status, const uint8_t *para
         event->state = transition;
 
         APP_EVENT_SUBMIT(event);
+
+        // FIXME: Move to module
+        /* Wake up device on resume */
+        if (USB_STATE == USB_STATE_SUSPENDED && transition != USB_STATE_SUSPENDED)
+        {
+            struct wake_up_event *event = new_wake_up_event();
+            APP_EVENT_SUBMIT(event);
+        }
+        /* Suspend the device */
+        else if (USB_STATE != USB_STATE_SUSPENDED && transition == USB_STATE_SUSPENDED)
+        {
+            struct force_power_down_event *event = new_force_power_down_event();
+            APP_EVENT_SUBMIT(event);
+        }
+
         USB_STATE = transition;
     }
 }
@@ -368,6 +389,7 @@ static bool app_event_handler(const struct app_event_header *aeh)
                 /* memcpy to avoid alignment/aliasing issues and take ownership incase the event is consumed before being sent */
                 memcpy(&position, event->dyndata.data, event->dyndata.size);
 
+                // FIXME: Race condition on the msg queue.
                 err = k_msgq_put(&sensor_msgq, &position.val1, K_NO_WAIT);
                 if (err < 0)
                 {
