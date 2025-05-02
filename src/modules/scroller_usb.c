@@ -12,7 +12,7 @@ LOG_MODULE_REGISTER(MODULE, LOG_LEVEL_DBG);
 
 #include "usb_state_event.h"
 #include "scroller_config.h"
-#include <caf/events/sensor_event.h>
+#include "scroller_scroll_calculate.h"
 #include <caf/events/force_power_down_event.h>
 #include <caf/events/power_event.h>
 
@@ -93,70 +93,6 @@ static const struct hid_ops ops = {
     .int_in_ready = int_in_ready_cb,
 };
 
-// FIXME: Move to middleware
-/* Convert raw position to step change */
-int16_t calculate_scroll(int32_t sensor_steps)
-{
-    static int16_t prev_steps;
-    int16_t curr_steps = (sensor_steps & 0xFFFF);
-
-    int16_t delta = prev_steps - curr_steps;
-
-    if (!delta)
-    {
-        return 0;
-    }
-
-    /* Handle wrapping the zero point */
-    if (delta > 2048)
-    {
-        delta -= 4096; /* Negative direction wrap */
-    }
-    else if (delta < -2048)
-    {
-        delta += 4096; /* Positive direction wrap */
-    }
-
-    /* Invert scroll direction */
-    delta *= -1;
-
-    /* Lock the global config while manipulating */
-    k_mutex_lock(&scroller_config_mutex, K_FOREVER);
-    SCROLLER_CONFIG.scroll_accumulator += delta;
-
-    /*
-     * Apply an internal scroll accumulator. The linux kernel only supports down to
-     * (int)(steps * 120 / RES MULT) resulting a maximum of 120 steps per detent. Fractional
-     * scrolling is not supported. The sensor emits 4096/120 ~34 detents per revolution
-     * which is high.
-     */
-
-    /* Steps are integer part of accumulated steps over the internal multiplier */
-    int32_t steps = SCROLLER_CONFIG.scroll_accumulator / SCROLLER_CONFIG.internal_divider;
-    SCROLLER_CONFIG.scroll_accumulator %= SCROLLER_CONFIG.internal_divider;
-
-    /* Release the global config */
-    k_mutex_unlock(&scroller_config_mutex);
-
-    /* Move cur to prev*/
-    prev_steps = curr_steps;
-
-    if (steps > INT16_MAX)
-    {
-        LOG_WRN("Steps overflowing 16bits, truncating: %d", steps);
-        return INT16_MAX;
-    }
-    else if (steps < INT16_MIN)
-    {
-        LOG_WRN("Steps overflowing 16bits, truncating: %d", steps);
-        return INT16_MIN;
-    }
-    else
-    {
-        return (int16_t)steps;
-    }
-}
-
 int send_report(const struct device *hid_dev, uint8_t *report, size_t report_size)
 {
     int err;
@@ -203,15 +139,15 @@ void usb_thread_fn()
 
     while (1)
     {
-        int32_t pos;
+        int16_t steps;
         /* Wait for a message to be available */
-        err = k_msgq_get(&sensor_msgq, &pos, K_FOREVER);
+        err = k_msgq_get(&step_msgq, &steps, K_FOREVER);
         if (err)
         {
             LOG_WRN("Recieve error: %d", err);
         }
 
-        wheel_report.wheel = calculate_scroll(pos);
+        wheel_report.wheel = steps;
 
         /* Copy the report to the static buffer */
         memcpy(report, &wheel_report, sizeof(wheel_report));
