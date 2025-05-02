@@ -157,6 +157,7 @@ void usb_thread_fn()
     }
 }
 
+// FIXME: Cleanup status transitions and remove from ISR
 /* Take the status reported by the callback and process it */
 static inline void status_cb(enum usb_dc_status_code status, const uint8_t *param)
 {
@@ -270,6 +271,7 @@ static int init()
                     (k_thread_entry_t)usb_thread_fn, NULL, NULL, NULL,
                     SCROLLER_SEND_THREAD_PRIORITY, 0, K_NO_WAIT);
     k_thread_name_set(&usb_thread, "usb_sender");
+    k_thread_suspend(&usb_thread);
 
     return err;
 }
