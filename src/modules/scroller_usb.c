@@ -38,9 +38,6 @@ struct __packed wheel_report_t
  */
 static K_SEM_DEFINE(ep_write_sem, 0, 1);
 
-// FIXME: Move to middleware
-K_MSGQ_DEFINE(sensor_msgq, sizeof(int32_t), 2, 1);
-
 /* Callback for IN endpoint transfer completion */
 static void int_in_ready_cb(const struct device *dev)
 {
@@ -296,7 +293,7 @@ static bool app_event_handler(const struct app_event_header *aeh)
             }
 
             /* Initalize and set module state */
-            int err = init();
+            err = init();
             if (err)
             {
                 module_set_state(MODULE_STATE_ERROR);
@@ -308,35 +305,6 @@ static bool app_event_handler(const struct app_event_header *aeh)
             }
         }
     }
-    else if (is_sensor_event(aeh))
-    {
-        struct sensor_event *event = cast_sensor_event(aeh);
-
-        /* If configured and the HID device is setup, send report */
-        if (USB_STATE == USB_STATE_CONFIGURED)
-        {
-            if (event->dyndata.size != 8)
-            {
-                LOG_ERR("Wrong size: %d", event->dyndata.size);
-            }
-            else
-            {
-                struct sensor_value position;
-                /* memcpy to avoid alignment/aliasing issues and take ownership incase the event is consumed before being sent */
-                memcpy(&position, event->dyndata.data, event->dyndata.size);
-
-                // FIXME: Race condition on the msg queue.
-                err = k_msgq_put(&sensor_msgq, &position.val1, K_NO_WAIT);
-                if (err < 0)
-                {
-                    LOG_WRN("Failed to put position on messsage queue");
-                }
-
-                /* Consume the event so avoid sending to multiple senders */
-                return false;
-            }
-        }
-    }
 
     /* Don't consume the event */
     return false;
@@ -344,5 +312,3 @@ static bool app_event_handler(const struct app_event_header *aeh)
 APP_EVENT_LISTENER(MODULE, app_event_handler);
 /* Listen for modules changing state */
 APP_EVENT_SUBSCRIBE(MODULE, module_state_event);
-/* Listen for sensor events */
-APP_EVENT_SUBSCRIBE_FIRST(MODULE, sensor_event);
