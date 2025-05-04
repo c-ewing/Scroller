@@ -2,7 +2,6 @@
 #include <caf/events/module_state_event.h>
 
 #include <zephyr/kernel.h>
-#include <zephyr/drivers/sensor.h>
 #include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(MODULE, LOG_LEVEL_DBG);
 
@@ -16,7 +15,6 @@ LOG_MODULE_REGISTER(MODULE, LOG_LEVEL_DBG);
 #include <caf/events/force_power_down_event.h>
 #include <caf/events/power_event.h>
 
-// #####
 /* USB initialization state */
 static bool USB_INIT = false;
 /* USB state */
@@ -37,6 +35,11 @@ struct __packed wheel_report_t
  * When all data is written to the IN endpoint, release the semaphore.
  */
 static K_SEM_DEFINE(ep_write_sem, 0, 1);
+
+/* Stack for USB thread*/
+// FIXME: kconfig for stack size
+static K_THREAD_STACK_DEFINE(usb_thread_stack, 1024);
+static struct k_thread usb_thread;
 
 /* Callback for IN endpoint transfer completion */
 static void int_in_ready_cb(const struct device *dev)
@@ -157,7 +160,6 @@ void usb_thread_fn()
     }
 }
 
-// FIXME: Cleanup status transitions and remove from ISR
 /* Take the status reported by the callback and process it */
 static inline void status_cb(enum usb_dc_status_code status, const uint8_t *param)
 {
@@ -201,36 +203,49 @@ static inline void status_cb(enum usb_dc_status_code status, const uint8_t *para
         return;
     }
 
-    /* On a state transition, broadcast an event */
-    if (USB_STATE != transition)
-    {
-        struct usb_state_event *event = new_usb_state_event();
-        event->state = transition;
+    struct usb_state_event *event = new_usb_state_event();
+    event->state = transition;
 
-        APP_EVENT_SUBMIT(event);
-
-        // FIXME: Move to module
-        /* Wake up device on resume */
-        if (USB_STATE == USB_STATE_SUSPENDED && transition != USB_STATE_SUSPENDED)
-        {
-            struct wake_up_event *event = new_wake_up_event();
-            APP_EVENT_SUBMIT(event);
-        }
-        /* Suspend the device */
-        else if (USB_STATE != USB_STATE_SUSPENDED && transition == USB_STATE_SUSPENDED)
-        {
-            struct force_power_down_event *event = new_force_power_down_event();
-            APP_EVENT_SUBMIT(event);
-        }
-
-        USB_STATE = transition;
-    }
+    APP_EVENT_SUBMIT(event);
 }
 
-/* Stack for USB thread*/
-// FIXME: kconfig for stack size
-static K_THREAD_STACK_DEFINE(usb_thread_stack, 1024);
-static struct k_thread usb_thread;
+void process_usb_state_event(struct usb_state_event *event)
+{
+    /* Only process on state transitions */
+    if (USB_STATE == event->state)
+    {
+        return;
+    }
+
+    /* Wake up device on resume */
+    switch (event->state)
+    {
+
+    case USB_STATE_CONFIGURED:
+    {
+        /* Start sender then sensor to keep send buffer clear */
+        struct wake_up_event *event = new_wake_up_event();
+        APP_EVENT_SUBMIT(event);
+        k_thread_resume(&usb_thread);
+
+        break;
+    }
+
+    default:
+        /* Don't re-suspend the device */
+        if (USB_STATE != USB_STATE_CONFIGURED)
+        {
+            /* Stop the sender and then the sensor to avoid HID errors from trying to send data when suspended */
+            struct force_power_down_event *event = new_force_power_down_event();
+            APP_EVENT_SUBMIT(event);
+            k_thread_suspend(&usb_thread);
+        }
+
+        break;
+    }
+
+    USB_STATE = event->state;
+}
 
 /* USB initialization */
 static int init()
@@ -308,9 +323,17 @@ static bool app_event_handler(const struct app_event_header *aeh)
         }
     }
 
+    if (is_usb_state_event(aeh))
+    {
+        struct usb_state_event *event = cast_usb_state_event(aeh);
+        process_usb_state_event(event);
+    }
+
     /* Don't consume the event */
     return false;
 }
 APP_EVENT_LISTENER(MODULE, app_event_handler);
 /* Listen for modules changing state */
 APP_EVENT_SUBSCRIBE(MODULE, module_state_event);
+/* Listen for usb_state_events */
+APP_EVENT_SUBSCRIBE(MODULE, usb_state_event);

@@ -23,6 +23,7 @@ void init_conf()
         k_mutex_init(&scroller_config_mutex);
 }
 
+// FIXME: Control over usb serial device descriptor? To be able to change settings? Could be later used for test harnessing?
 int main(void)
 {
         printk("Scroller v0.1 Test Application\n");
