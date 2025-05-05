@@ -24,6 +24,7 @@ void init_conf()
 }
 
 // FIXME: Control over usb serial device descriptor? To be able to change settings? Could be later used for test harnessing?
+// FIXME: Timer based wake to check the sensor and see if it has changed value. If so, wake the device
 int main(void)
 {
         printk("Scroller v0.1 Test Application\n");
