@@ -209,7 +209,7 @@ static inline void status_cb(enum usb_dc_status_code status, const uint8_t *para
     APP_EVENT_SUBMIT(event);
 }
 
-void process_usb_state_event(struct usb_state_event *event)
+static void process_usb_state_event(struct usb_state_event *event)
 {
     /* Only process on state transitions */
     if (USB_STATE == event->state)

@@ -79,7 +79,7 @@ int16_t calculate_scroll(int32_t sensor_steps)
 }
 
 /* Process sensor event */
-void process_sensor_event(struct sensor_event *event)
+static void process_sensor_event(struct sensor_event *event)
 {
     int err;
 
@@ -110,13 +110,13 @@ void process_sensor_event(struct sensor_event *event)
 }
 
 /* No initialization needed */
-int init()
+static int init()
 {
     return 0;
 }
 
 /* Process module state event */
-void process_module_state_event(struct module_state_event *event)
+static void process_module_state_event(struct module_state_event *event)
 {
     int err;
 
@@ -139,7 +139,7 @@ void process_module_state_event(struct module_state_event *event)
 }
 
 /* Process wake up event */
-void process_wake_up_event(struct wake_up_event *event)
+static void process_wake_up_event(struct wake_up_event *event)
 {
     LOG_WRN("Wakeup");
 }
