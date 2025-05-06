@@ -13,7 +13,7 @@ NRF52840 and AMS AS5600 based wireless scroll wheel currently in the MVP state.
 ## Requirements
 This project currently depends on the AS5600 driver being upstreamed in [zephyr-drivers/tree/as5600-driver-improvement](https://github.com/c-ewing/zephyr-drivers/tree/as5600-driver-improvement)
 
-Additionally building against a NRF SDK version newer than 3.0.0 is required (Currently built against 3.0.0-rc1)
+Additionally building against a NRF SDK version newer than 3.0.0 is required.
 
 ## Testing
 
