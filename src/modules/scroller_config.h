@@ -23,8 +23,6 @@ struct scroller_config_t
     int32_t scroll_accumulator;
     int32_t internal_divider;
 };
-
-/* Global config */
 extern struct scroller_config_t SCROLLER_CONFIG;
 extern struct k_mutex scroller_config_mutex;
 
