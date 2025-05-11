@@ -172,4 +172,5 @@ APP_EVENT_SUBSCRIBE(MODULE, module_state_event);
 /* Listen for sensor events */
 APP_EVENT_SUBSCRIBE(MODULE, sensor_event);
 /* Listen for power events */
-APP_EVENT_SUBSCRIBE(MODULE, power_event);
+APP_EVENT_SUBSCRIBE(MODULE, power_down_event);
+APP_EVENT_SUBSCRIBE(MODULE, wake_up_event);
